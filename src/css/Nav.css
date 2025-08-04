@@ -1,0 +1,35 @@
+.navbar {
+    background-color: #ffffff;
+    padding: 10px;
+    display: flex; /* Usar flexbox para la barra de navegación */
+    justify-content: space-between; /* Espacio entre los elementos */
+    align-items: center; /* Centrar verticalmente los elementos */
+}
+.navbar ul {
+    list-style-type: none;
+    padding: 0;
+    display: flex; /* Usar flexbox para la lista */
+    flex-grow: 1; /* Hacer que la lista ocupe el espacio disponible */
+    justify-content: flex-start; /* Alinear los elementos a la izquierda */
+}
+.navbar li {
+    margin-right: 15px;
+    flex: 1; /* Hacer que cada elemento ocupe el mismo espacio */
+}
+.nav-button {
+    color: white;
+    text-decoration: none;
+    padding: 10px 15px;
+    background-color: #007bff;
+    border: none;
+    border-radius: 5px;
+    display: block; /* Asegurarse de que el botón ocupe todo el espacio del contenedor */
+    text-align: center; /* Centrar el texto dentro del botón */
+}
+.nav-button:hover {
+    background-color: #0056b3;
+}
+.logout-button {
+    background-color: #dc3545; /* Color diferente para el botón de logout */
+    margin-left: auto; /* Empujar el botón de logout a la derecha */
+}
