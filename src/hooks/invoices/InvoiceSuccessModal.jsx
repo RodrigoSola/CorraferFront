@@ -1,491 +1,353 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { FaCheck, FaReceipt, FaTimes, FaCheckCircle, FaStar, FaCopy, FaCalendarAlt, FaUser, FaCreditCard, FaHashtag } from 'react-icons/fa';
 
-const InvoiceSuccessModal = ({ 
-  isOpen, 
-  onClose, 
-  invoiceData, 
-  onDownloadPDF, 
-  onViewPDF, 
-  onPrintPDF 
-}) => {
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [isViewing, setIsViewing] = useState(false);
+const InvoiceSuccessModal = ({ isOpen, onClose, invoiceData }) => {
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [copiedField, setCopiedField] = useState(null);
 
-  // ✅ Debug logs temporales
-  console.log('🔍 InvoiceSuccessModal - invoiceData:', invoiceData);
-  console.log('🔍 invoiceData.total:', invoiceData?.total);
-  console.log('🔍 typeof total:', typeof invoiceData?.total);
+  useEffect(() => {
+    if (isOpen) {
+      setIsAnimating(true);
+      setShowConfetti(true);
+      
+      // Animación de entrada
+      setTimeout(() => setIsAnimating(false), 500);
+      
+      // Confetti por 3 segundos
+      setTimeout(() => setShowConfetti(false), 3000);
+    }
+  }, [isOpen]);
+
+  const copyToClipboard = async (text, field) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Error copiando al portapapeles:', err);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const handleClose = () => {
+    setIsAnimating(true);
+    setTimeout(() => {
+      setIsAnimating(false);
+      onClose();
+    }, 300);
+  };
 
   if (!isOpen || !invoiceData) return null;
 
-  // ✅ Valores por defecto seguros para prevenir errores
-  const safeInvoiceData = {
-    numeroFactura: 'N/A',
-    tipo: 'N/A',
-    cae: 'N/A',
-    cliente: 'N/A',
-    fechaEmision: new Date().toLocaleDateString(),
-    metodoPago: 'N/A',
-    total: 0,
-    testing: false,
-    pdfFileName: null,
-    downloadUrl: null,
-    viewUrl: null,
-    client: null,
-    ...invoiceData // Sobrescribir con datos reales si existen
-  };
-
-  // ✅ Validación adicional para campos críticos
-  const safeTotal = typeof safeInvoiceData.total === 'number' ? safeInvoiceData.total : 0;
-
-  const handleDownload = async () => {
-    setIsDownloading(true);
-    try {
-      if (safeInvoiceData.downloadUrl && safeInvoiceData.downloadUrl !== '#') {
-        // Crear enlace temporal para descargar
-        const link = document.createElement('a');
-        link.href = safeInvoiceData.downloadUrl;
-        link.download = safeInvoiceData.pdfFileName || `factura_${safeInvoiceData.numeroFactura}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        alert('PDF no disponible para descargar - URL no válida');
-      }
-      if (onDownloadPDF) onDownloadPDF(safeInvoiceData);
-    } catch (error) {
-      console.error('Error descargando PDF:', error);
-      alert('Error al descargar el PDF');
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  const handleView = async () => {
-    setIsViewing(true);
-    try {
-      if (safeInvoiceData.viewUrl && safeInvoiceData.viewUrl !== '#') {
-        window.open(safeInvoiceData.viewUrl, '_blank', 'width=800,height=600,scrollbars=yes');
-      } else {
-        alert('PDF no disponible para visualizar - URL no válida');
-      }
-      if (onViewPDF) onViewPDF(safeInvoiceData);
-    } catch (error) {
-      console.error('Error abriendo PDF:', error);
-      alert('Error al abrir el PDF');
-    } finally {
-      setIsViewing(false);
-    }
-  };
-
-  const handlePrint = async () => {
-    try {
-      if (safeInvoiceData.viewUrl && safeInvoiceData.viewUrl !== '#') {
-        // Abrir PDF en ventana nueva para imprimir
-        const printWindow = window.open(safeInvoiceData.viewUrl, '_blank', 'width=800,height=600');
-        if (printWindow) {
-          printWindow.onload = () => {
-            setTimeout(() => {
-              printWindow.print();
-            }, 1000);
-          };
-        }
-      } else {
-        alert('PDF no disponible para imprimir - URL no válida');
-      }
-      if (onPrintPDF) onPrintPDF(safeInvoiceData);
-    } catch (error) {
-      console.error('Error imprimiendo PDF:', error);
-      alert('Error al imprimir el PDF');
-    }
-  };
-
-  const handleEmailPDF = () => {
-    if (safeInvoiceData.client?.email) {
-      const subject = `Factura ${safeInvoiceData.numeroFactura} - ${safeInvoiceData.client.name}`;
-      const body = `Estimado/a ${safeInvoiceData.client.name},\n\nAdjunto encontrará la factura ${safeInvoiceData.numeroFactura} por un total de $${safeTotal.toFixed(2)}.\n\nGracias por su compra.\n\nSaludos cordiales.`;
-      const mailtoLink = `mailto:${safeInvoiceData.client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.open(mailtoLink);
-    } else {
-      alert('El cliente no tiene email registrado');
-    }
-  };
-
-  const styles = {
-    overlay: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      zIndex: 10000,
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      animation: 'fadeIn 0.3s ease-out'
-    },
-    modal: {
-      backgroundColor: 'white',
-      borderRadius: '16px',
-      padding: '2rem',
-      maxWidth: '500px',
-      width: '90%',
-      maxHeight: '90vh',
-      overflowY: 'auto',
-      boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
-      transform: 'scale(1)',
-      animation: 'slideIn 0.3s ease-out'
-    },
-    header: {
-      textAlign: 'center',
-      marginBottom: '1.5rem'
-    },
-    icon: {
-      fontSize: '4rem',
-      marginBottom: '1rem'
-    },
-    title: {
-      fontSize: '1.5rem',
-      fontWeight: 'bold',
-      marginBottom: '0.5rem',
-      color: '#333'
-    },
-    subtitle: {
-      fontSize: '0.9rem',
-      color: '#666',
-      marginBottom: '1rem'
-    },
-    testBanner: {
-      backgroundColor: '#e3f2fd',
-      border: '2px solid #2196f3',
-      borderRadius: '8px',
-      padding: '0.75rem',
-      marginBottom: '1.5rem',
-      textAlign: 'center'
-    },
-    testText: {
-      color: '#1976d2',
-      fontWeight: '600',
-      fontSize: '0.9rem'
-    },
-    infoCard: {
-      backgroundColor: '#f8f9fa',
-      borderRadius: '8px',
-      padding: '1rem',
-      marginBottom: '1.5rem',
-      border: '1px solid #e9ecef'
-    },
-    infoRow: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginBottom: '0.5rem',
-      fontSize: '0.9rem'
-    },
-    infoLabel: {
-      fontWeight: '500',
-      color: '#666'
-    },
-    infoValue: {
-      fontWeight: '600',
-      color: '#333'
-    },
-    totalRow: {
-      borderTop: '2px solid #e9ecef',
-      paddingTop: '0.5rem',
-      fontSize: '1.1rem'
-    },
-    buttonsGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(2, 1fr)',
-      gap: '0.75rem',
-      marginBottom: '1rem'
-    },
-    button: {
-      padding: '0.75rem 1rem',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: '0.9rem',
-      fontWeight: '600',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '0.5rem',
-      transition: 'all 0.2s ease',
-      textDecoration: 'none'
-    },
-    primaryButton: {
-      backgroundColor: '#2196f3',
-      color: 'white'
-    },
-    secondaryButton: {
-      backgroundColor: '#4caf50',
-      color: 'white'
-    },
-    printButton: {
-      backgroundColor: '#ff9800',
-      color: 'white'
-    },
-    emailButton: {
-      backgroundColor: '#9c27b0',
-      color: 'white'
-    },
-    closeButton: {
-      backgroundColor: '#6c757d',
-      color: 'white',
-      width: '100%',
-      marginTop: '0.5rem'
-    },
-    disabledButton: {
-      opacity: 0.6,
-      cursor: 'not-allowed'
-    },
-    spinner: {
-      width: '16px',
-      height: '16px',
-      border: '2px solid transparent',
-      borderTop: '2px solid currentColor',
-      borderRadius: '50%',
-      animation: 'spin 1s linear infinite'
-    },
-    debugInfo: {
-      backgroundColor: '#f0f0f0',
-      border: '1px solid #ccc',
-      borderRadius: '4px',
-      padding: '0.5rem',
-      fontSize: '0.75rem',
-      fontFamily: 'monospace',
-      marginBottom: '1rem',
-      color: '#333'
-    }
-  };
-
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        {/* ✅ Debug info temporal */}
-        <div style={styles.debugInfo}>
-          <strong>DEBUG INFO:</strong><br/>
-          total: {JSON.stringify(safeInvoiceData.total)} (type: {typeof safeInvoiceData.total})<br/>
-          safeTotal: {safeTotal}<br/>
-          pdfFileName: {safeInvoiceData.pdfFileName || 'null'}<br/>
-          downloadUrl: {safeInvoiceData.downloadUrl || 'null'}
+    <div 
+      className="fixed inset-0 z-[60] overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.2) 50%, rgba(4, 120, 87, 0.3) 100%)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)'
+      }}
+    >
+      {/* Confetti animado */}
+      {showConfetti && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute animate-bounce opacity-80"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                fontSize: `${Math.random() * 20 + 15}px`,
+                animationDelay: `${Math.random() * 2}s`,
+                animationDuration: `${2 + Math.random() * 2}s`
+              }}
+            >
+              {['🎉', '🎊', '✨', '🌟', '💫', '🎈', '🎆', '🥳'][Math.floor(Math.random() * 8)]}
+            </div>
+          ))}
         </div>
+      )}
 
-        {/* Header */}
-        <div style={styles.header}>
-          <div style={styles.icon}>
-            {safeInvoiceData.testing ? '🧪' : '✅'}
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div 
+          className={`w-full max-w-2xl transition-all duration-500 transform ${
+            isAnimating ? 'scale-95 opacity-0 rotate-2' : 'scale-100 opacity-100 rotate-0'
+          }`}
+          style={{
+            background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 50%, #ecfdf5 100%)',
+            borderRadius: '32px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(34, 197, 94, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+            border: '3px solid transparent',
+            backgroundClip: 'padding-box',
+            position: 'relative'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Borde animado con gradiente */}
+          <div 
+            className="absolute inset-0 rounded-[32px] p-[3px] animate-pulse"
+            style={{
+              background: 'linear-gradient(45deg, #10b981, #059669, #047857, #065f46)',
+              backgroundSize: '300% 300%',
+              animation: 'gradientShift 3s ease infinite'
+            }}
+          >
+            <div 
+              className="w-full h-full rounded-[29px]"
+              style={{
+                background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 50%, #ecfdf5 100%)'
+              }}
+            />
           </div>
-          <h2 style={{
-            ...styles.title,
-            color: safeInvoiceData.testing ? '#1976d2' : '#4caf50'
-          }}>
-            {safeInvoiceData.testing ? '¡Factura de Prueba Generada!' : '¡Factura Generada Exitosamente!'}
-          </h2>
-          <p style={styles.subtitle}>
-            {safeInvoiceData.testing 
-              ? 'Tu factura de prueba está lista para ver, descargar o imprimir'
-              : 'Tu factura oficial está lista para ver, descargar o imprimir'
-            }
-          </p>
-        </div>
 
-        {/* Banner de testing */}
-        {safeInvoiceData.testing && (
-          <div style={styles.testBanner}>
-            <div style={styles.testText}>
-              🧪 MODO TESTING - Esta factura no tiene validez fiscal
+          <div className="relative p-8">
+            {/* Header de éxito ultra mejorado */}
+            <div className="text-center mb-8">
+              <div className="relative mb-6">
+                {/* Círculo de éxito con animación */}
+                <div 
+                  className="w-24 h-24 mx-auto rounded-full flex items-center justify-center shadow-2xl animate-bounce"
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    boxShadow: '0 10px 30px rgba(16, 185, 129, 0.4), inset 0 2px 0 rgba(255,255,255,0.2)'
+                  }}
+                >
+                  <FaCheckCircle className="text-white text-4xl" />
+                </div>
+                
+                {/* Anillos de ondas */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-full border-4 border-green-300 opacity-30 animate-ping" />
+                  <div className="absolute w-40 h-40 rounded-full border-4 border-green-200 opacity-20 animate-ping" style={{ animationDelay: '0.5s' }} />
+                </div>
+              </div>
+
+              <h1 
+                className="text-4xl font-bold mb-3"
+                style={{
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}
+              >
+                🎉 ¡Factura Generada Exitosamente!
+              </h1>
+              
+              <p className="text-xl text-gray-600 mb-2">
+                Tu factura ha sido procesada correctamente
+              </p>
+              
+              {invoiceData.testing && (
+                <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-semibold border border-blue-300">
+                  🧪 <span>Modo de Prueba</span>
+                </div>
+              )}
+            </div>
+
+            {/* Información de la factura mejorada */}
+            <div 
+              className="rounded-2xl p-6 mb-6 border-2"
+              style={{
+                background: 'linear-gradient(135deg, #ffffff 0%, #fafafa 100%)',
+                borderColor: '#d1d5db',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
+              }}
+            >
+              <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                <FaReceipt className="text-green-600" />
+                📄 Detalles de la Factura
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Número de factura */}
+                <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-blue-600 font-semibold text-sm mb-1">📋 Número de Factura</p>
+                      <p className="text-2xl font-bold text-blue-800">
+                        {invoiceData.numeroFactura || invoiceData.invoiceNumber || 'N/A'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(invoiceData.numeroFactura || invoiceData.invoiceNumber || '', 'numero')}
+                      className="text-blue-600 hover:text-blue-800 transition-colors p-2 hover:bg-blue-200 rounded-lg"
+                    >
+                      {copiedField === 'numero' ? <FaCheck /> : <FaCopy />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* CAE */}
+                {invoiceData.cae && (
+                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-purple-600 font-semibold text-sm mb-1">🔐 CAE</p>
+                        <p className="text-lg font-bold text-purple-800 font-mono">
+                          {invoiceData.cae}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(invoiceData.cae, 'cae')}
+                        className="text-purple-600 hover:text-purple-800 transition-colors p-2 hover:bg-purple-200 rounded-lg"
+                      >
+                        {copiedField === 'cae' ? <FaCheck /> : <FaCopy />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tipo de comprobante */}
+                <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+                  <p className="text-green-600 font-semibold text-sm mb-1">📝 Tipo de Comprobante</p>
+                  <p className="text-xl font-bold text-green-800">
+                    Factura {invoiceData.tipoComprobante || invoiceData.tipo || invoiceData.type || 'C'}
+                  </p>
+                </div>
+
+                {/* Total */}
+                <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-4 rounded-xl border border-yellow-200">
+                  <p className="text-yellow-600 font-semibold text-sm mb-1">💰 Total</p>
+                  <p className="text-2xl font-bold text-yellow-800">
+                    ${parseFloat(invoiceData.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+
+                {/* Fecha de emisión */}
+                <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 p-4 rounded-xl border border-indigo-200">
+                  <p className="text-indigo-600 font-semibold text-sm mb-1">📅 Fecha de Emisión</p>
+                  <p className="text-lg font-bold text-indigo-800">
+                    {formatDate(invoiceData.fechaEmision)}
+                  </p>
+                </div>
+
+                {/* Cliente */}
+                <div className="bg-gradient-to-r from-teal-50 to-teal-100 p-4 rounded-xl border border-teal-200">
+                  <p className="text-teal-600 font-semibold text-sm mb-1">👤 Cliente</p>
+                  <p className="text-lg font-bold text-teal-800 truncate">
+                    {invoiceData.cliente?.name || invoiceData.clientData?.name || 'Consumidor Final'}
+                  </p>
+                </div>
+
+                {/* Vencimiento CAE */}
+                {invoiceData.vencimientoCae && (
+                  <div className="md:col-span-2 bg-gradient-to-r from-red-50 to-red-100 p-4 rounded-xl border border-red-200">
+                    <p className="text-red-600 font-semibold text-sm mb-1">⏰ Vencimiento CAE</p>
+                    <p className="text-lg font-bold text-red-800">
+                      {formatDate(invoiceData.vencimientoCae)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Resumen de productos si existe */}
+            {invoiceData.items && invoiceData.items.length > 0 && (
+              <div 
+                className="rounded-2xl p-6 mb-6 border-2"
+                style={{
+                  background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+                  borderColor: '#cbd5e1'
+                }}
+              >
+                <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  📦 Productos Facturados ({invoiceData.items.length})
+                </h4>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {invoiceData.items.slice(0, 5).map((item, index) => (
+                    <div key={index} className="flex justify-between items-center bg-white p-3 rounded-lg border">
+                      <span className="font-medium text-gray-800 truncate">{item.name || item.description}</span>
+                      <div className="text-right">
+                        <span className="text-sm text-gray-600">Qty: {item.quantity} • </span>
+                        <span className="font-bold text-green-600">${parseFloat(item.priceWithIVA || item.price || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {invoiceData.items.length > 5 && (
+                    <div className="text-center text-gray-500 text-sm py-2">
+                      ... y {invoiceData.items.length - 5} productos más
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Mensaje de éxito personalizado */}
+            <div 
+              className="rounded-2xl p-6 mb-6 text-center border-2"
+              style={{
+                background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+                borderColor: '#10b981'
+              }}
+            >
+              <div className="text-6xl mb-4">🎊</div>
+              <h3 className="text-2xl font-bold text-green-800 mb-3">
+                ¡Proceso Completado con Éxito!
+              </h3>
+              <p className="text-green-700 text-lg leading-relaxed">
+                La factura ha sido generada y guardada correctamente en el sistema. 
+                {invoiceData.testing ? ' Recuerda que esta es una factura de prueba.' : ' Ya está disponible para su gestión.'}
+              </p>
+            </div>
+
+            {/* Estadísticas de la transacción */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="text-center bg-blue-50 p-4 rounded-xl border border-blue-200">
+                <div className="text-2xl font-bold text-blue-600 mb-1">
+                  {invoiceData.items?.length || 0}
+                </div>
+                <div className="text-blue-700 text-sm font-medium">Productos</div>
+              </div>
+              <div className="text-center bg-purple-50 p-4 rounded-xl border border-purple-200">
+                <div className="text-2xl font-bold text-purple-600 mb-1">
+                  ${parseFloat(invoiceData.total || 0).toFixed(0)}
+                </div>
+                <div className="text-purple-700 text-sm font-medium">Monto Total</div>
+              </div>
+              <div className="text-center bg-green-50 p-4 rounded-xl border border-green-200">
+                <div className="text-2xl font-bold text-green-600 mb-1">
+                  ✅
+                </div>
+                <div className="text-green-700 text-sm font-medium">Procesado</div>
+              </div>
+            </div>
+
+            {/* Botón de cerrar mejorado */}
+            <div className="flex justify-center">
+              <button
+                onClick={handleClose}
+                className="group px-12 py-4 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white font-bold rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl flex items-center gap-3"
+                style={{
+                  boxShadow: '0 10px 30px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)'
+                }}
+              >
+                <FaCheck className="group-hover:animate-bounce" />
+                ✨ Continuar
+                <div className="absolute -inset-2 bg-gradient-to-r from-green-400 to-teal-400 rounded-2xl opacity-20 group-hover:opacity-40 transition-opacity blur-xl" />
+              </button>
             </div>
           </div>
-        )}
-
-        {/* Información de la factura */}
-        <div style={styles.infoCard}>
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Número de Factura:</span>
-            <span style={styles.infoValue}>{safeInvoiceData.numeroFactura}</span>
-          </div>
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Tipo:</span>
-            <span style={styles.infoValue}>Factura {safeInvoiceData.tipo}</span>
-          </div>
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>CAE:</span>
-            <span style={styles.infoValue}>{safeInvoiceData.cae}</span>
-          </div>
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Cliente:</span>
-            <span style={styles.infoValue}>{safeInvoiceData.cliente}</span>
-          </div>
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Fecha:</span>
-            <span style={styles.infoValue}>{safeInvoiceData.fechaEmision}</span>
-          </div>
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Método de Pago:</span>
-            <span style={styles.infoValue}>{safeInvoiceData.metodoPago}</span>
-          </div>
-          <div style={{...styles.infoRow, ...styles.totalRow}}>
-            <span style={styles.infoLabel}>TOTAL:</span>
-            <span style={{...styles.infoValue, color: '#2196f3'}}>
-              ${safeTotal.toFixed(2)}
-            </span>
-          </div>
-        </div>
-
-        {/* Botones de acción para PDF */}
-        {safeInvoiceData.pdfFileName && (
-          <div style={styles.buttonsGrid}>
-            {/* Ver PDF */}
-            <button
-              onClick={handleView}
-              disabled={isViewing}
-              style={{
-                ...styles.button,
-                ...styles.primaryButton,
-                ...(isViewing ? styles.disabledButton : {})
-              }}
-              onMouseOver={(e) => {
-                if (!isViewing) e.target.style.backgroundColor = '#1976d2';
-              }}
-              onMouseOut={(e) => {
-                if (!isViewing) e.target.style.backgroundColor = '#2196f3';
-              }}
-            >
-              {isViewing ? (
-                <div style={styles.spinner}></div>
-              ) : (
-                '👁️'
-              )}
-              Ver PDF
-            </button>
-
-            {/* Descargar PDF */}
-            <button
-              onClick={handleDownload}
-              disabled={isDownloading}
-              style={{
-                ...styles.button,
-                ...styles.secondaryButton,
-                ...(isDownloading ? styles.disabledButton : {})
-              }}
-              onMouseOver={(e) => {
-                if (!isDownloading) e.target.style.backgroundColor = '#388e3c';
-              }}
-              onMouseOut={(e) => {
-                if (!isDownloading) e.target.style.backgroundColor = '#4caf50';
-              }}
-            >
-              {isDownloading ? (
-                <div style={styles.spinner}></div>
-              ) : (
-                '💾'
-              )}
-              Descargar
-            </button>
-
-            {/* Imprimir PDF */}
-            <button
-              onClick={handlePrint}
-              style={{
-                ...styles.button,
-                ...styles.printButton
-              }}
-              onMouseOver={(e) => e.target.style.backgroundColor = '#f57c00'}
-              onMouseOut={(e) => e.target.style.backgroundColor = '#ff9800'}
-            >
-              🖨️ Imprimir
-            </button>
-
-            {/* Enviar por Email */}
-            <button
-              onClick={handleEmailPDF}
-              disabled={!safeInvoiceData.client?.email}
-              style={{
-                ...styles.button,
-                ...styles.emailButton,
-                ...(!safeInvoiceData.client?.email ? styles.disabledButton : {})
-              }}
-              onMouseOver={(e) => {
-                if (safeInvoiceData.client?.email) e.target.style.backgroundColor = '#7b1fa2';
-              }}
-              onMouseOut={(e) => {
-                if (safeInvoiceData.client?.email) e.target.style.backgroundColor = '#9c27b0';
-              }}
-              title={!safeInvoiceData.client?.email ? 'Cliente sin email' : 'Enviar por email'}
-            >
-              📧 Email
-            </button>
-          </div>
-        )}
-
-        {/* Advertencia si no hay PDF */}
-        {!safeInvoiceData.pdfFileName && (
-          <div style={{
-            backgroundColor: '#fff3cd',
-            border: '1px solid #ffeaa7',
-            borderRadius: '8px',
-            padding: '1rem',
-            marginBottom: '1rem',
-            textAlign: 'center'
-          }}>
-            <span style={{ color: '#856404' }}>
-              ⚠️ PDF no disponible - Los datos de la factura fueron generados pero sin archivo PDF
-            </span>
-          </div>
-        )}
-
-        {/* Botón cerrar */}
-        <button
-          onClick={onClose}
-          style={{
-            ...styles.button,
-            ...styles.closeButton
-          }}
-          onMouseOver={(e) => e.target.style.backgroundColor = '#5a6268'}
-          onMouseOut={(e) => e.target.style.backgroundColor = '#6c757d'}
-        >
-          Cerrar
-        </button>
-
-        {/* Información adicional */}
-        <div style={{
-          textAlign: 'center',
-          fontSize: '0.8rem',
-          color: '#666',
-          marginTop: '1rem',
-          paddingTop: '1rem',
-          borderTop: '1px solid #e9ecef'
-        }}>
-          {safeInvoiceData.testing 
-            ? '💡 Esta factura de prueba es solo para testing del sistema'
-            : '💡 Esta factura ha sido registrada oficialmente en AFIP'
-          }
         </div>
       </div>
 
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        
-        @keyframes slideIn {
-          from { 
-            opacity: 0;
-            transform: scale(0.9) translateY(-20px);
-          }
-          to { 
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-        
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+      <style jsx>{`
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
       `}</style>
     </div>

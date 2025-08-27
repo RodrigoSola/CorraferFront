@@ -16,7 +16,7 @@ const Nav = () => {
                     <Link to="/clients" className="nav-button">Clientes</Link>
                 </li>
                 <li>
-                    <Link to="/facturas" className="nav-button">Facturas</Link>
+                    <Link to="/invoices" className="nav-button">Facturas</Link>
                 </li>
             </ul>
             <button onClick={handleLogout} className={`nav-button logout-button`}>Logout</button>

@@ -6,6 +6,7 @@ import Login from "./components/Login";
 import Products from "./hooks/products/Products";
 import { CartProvider } from "./components/CartContext";
 import Clients from "./components/Clients";
+import InvoicesPage from "./hooks/invoices/InvoicesPage";
 
 const CartLayout = ({ children }) => <CartProvider>{children}</CartProvider>;
 
@@ -39,4 +40,8 @@ export const router = createBrowserRouter([
     path: "/clients",
     element: <Clients />,
   },
+  {path:"/invoices",
+   element:<InvoicesPage />
+  }
+  
 ]);

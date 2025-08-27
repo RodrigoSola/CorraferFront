@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const CompanyConfigModal = ({ isOpen, onClose }) => {
   // URL base de tu API
@@ -23,7 +23,7 @@ const CompanyConfigModal = ({ isOpen, onClose }) => {
     if (isOpen) {
       loadConfig();
     }
-  }, [isOpen]);
+  }, [isOpen, loadConfig]);
 
   // Obtener configuración de la empresa
   const getCompanyConfig = async () => {
@@ -100,7 +100,7 @@ const CompanyConfigModal = ({ isOpen, onClose }) => {
     return cleaned;
   };
 
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     setIsLoading(true);
     try {
       const currentConfig = await getCompanyConfig();
@@ -110,7 +110,7 @@ const CompanyConfigModal = ({ isOpen, onClose }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  },[]);
 
   const handleSave = async () => {
     // Validar datos
